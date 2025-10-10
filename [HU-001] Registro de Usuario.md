@@ -146,8 +146,6 @@ Para poder acceder y gestionar la información de las mascotas
 
 ## ✅ Definición de Hecho
 
-#Historia: Consulta del Último Cierre Procesado
-
 ## 📦 Alcance Funcional
 
 - [ ] El endpoint permite crear un usuario con datos válidos.
