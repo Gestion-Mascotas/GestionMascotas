@@ -76,7 +76,7 @@ Para poder acceder y gestionar la información de las mascotas
 
 ## 🔧 Notas Técnicas
 
-## 🚀 Endpoint – Consulta del Último Cierre
+## 🚀 Endpoint – Registro de Usuario
 
 - **Método HTTP:** `POST`
 - **Ruta:** `/api/usuarios `
