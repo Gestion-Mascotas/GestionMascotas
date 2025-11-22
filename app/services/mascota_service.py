@@ -135,6 +135,76 @@ class MascotaService:
             )
             return 500, resp
 
+
+     # ---------- HU-004: Consultar Mascota ----------
+    def consultar_mascota(
+        self,
+        mascota_id: int,
+        usuario_id: int | None
+    ) -> Tuple[int, StandardResponse]:
+
+        # Usuario no autenticado
+        if usuario_id is None:
+            resp = StandardResponse(
+                mensaje="Debe iniciar sesión para consultar la mascota.",
+                success=False,
+                error_code="401",
+                details=None,
+                data=None,
+            )
+            return 401, resp
+
+        # Buscar mascota
+        mascota = self.repo.obtener_por_id(mascota_id)
+
+        # Mascota no existe
+        if not mascota:
+            resp = StandardResponse(
+                mensaje="Mascota no encontrada",
+                success=False,
+                error_code="404",
+                details=None,
+                data=None,
+            )
+            return 404, resp
+
+        # Mascota existe pero no pertenece al usuario
+        if mascota.usuario_id != usuario_id:
+            resp = StandardResponse(
+                mensaje="Acceso no autorizado",
+                success=False,
+                error_code="403",
+                details=None,
+                data=None,
+            )
+            return 403, resp
+
+        # Construcción del objeto de salida
+        mascota_out = MascotaOut(
+            id=mascota.id,
+            nombre=mascota.nombre,
+            especie=mascota.especie,
+            raza=mascota.raza,
+            edad=mascota.edad,
+            peso=mascota.peso,
+            sexo=mascota.sexo,
+            usuario_id=mascota.usuario_id,
+        )
+
+        # OK
+        resp = StandardResponse(
+            mensaje="Mascota consultada correctamente",
+            success=True,
+            error_code=None,
+            details=None,
+            data=(
+                mascota_out.model_dump()
+                if hasattr(mascota_out, "model_dump")
+                else mascota_out.model_dump()
+            ),
+        )
+        return 200, resp
+
     # ---------- HU-005: Actualizar Mascota ----------
     def actualizar_mascota(
         self,
