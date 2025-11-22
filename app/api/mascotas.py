@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.domain.mascota_schema import MascotaUpdate
 from app.domain.usuario_schema import StandardResponse
+from app.domain.mascota_schema import MascotaCreate
 from app.services.mascota_service import MascotaService
 from app.security import obtener_usuario_id_desde_token
 
@@ -20,6 +21,44 @@ def get_db():
     finally:
         db.close()
 
+# ----------- HU-003: Creación de Mascota --------------
+@router.post("/", response_model=StandardResponse)
+def crear_mascota(
+    datos: MascotaCreate,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    # Validar token presente
+    if not authorization or not authorization.startswith("Bearer "):
+        resp = StandardResponse(
+            mensaje="Debe iniciar sesión para registrar una mascota.",
+            success=False,
+            data=None,
+            error_code="401",
+            details=None,
+        )
+        return JSONResponse(status_code=401, content=resp.model_dump())
+
+    # Extraer token
+    token = authorization.split(" ", 1)[1]
+    usuario_id = obtener_usuario_id_desde_token(token)
+
+    # Token inválido o expirado
+    if not usuario_id:
+        resp = StandardResponse(
+            mensaje="Debe iniciar sesión para registrar una mascota.",
+            success=False,
+            data=None,
+            error_code="401",
+            details=None,
+        )
+        return JSONResponse(status_code=401, content=resp.model_dump())
+
+    # Ejecutar servicio
+    service = MascotaService(db)
+    status_code, resp = service.crear_mascota(usuario_id, datos)
+    
+    return JSONResponse(status_code=status_code, content=resp.model_dump())
 
 # ---------- HU-005: Actualización de Mascota ----------
 @router.put("/{mascota_id}", response_model=StandardResponse)

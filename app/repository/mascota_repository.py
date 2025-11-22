@@ -8,6 +8,34 @@ class MascotaRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    
+    def crear(self, usuario_id: int, datos: dict) -> Mascota:
+        mascota = Mascota(
+            usuario_id=usuario_id,
+            
+            nombre=datos.get("nombre"),
+            especie=datos.get("especie"),
+            raza=datos.get("raza"),
+            edad=datos.get("edad"),
+            peso=datos.get("peso"),
+            sexo=datos.get("sexo"),
+        )
+        self.db.add(mascota)
+        self.db.commit()
+        self.db.refresh(mascota)
+        return mascota
+
+
+    def obtener_por_nombre_y_usuario(self,nombre: str,usuario_id: int) -> Mascota | None:
+        return (
+        self.db.query(Mascota)
+        .filter(
+            Mascota.nombre == nombre,
+            Mascota.usuario_id == usuario_id
+        )
+        .first()
+    )    
+
     def obtener_por_id(self, mascota_id: int) -> Mascota | None:
         return self.db.query(Mascota).filter(Mascota.id == mascota_id).first()
 
