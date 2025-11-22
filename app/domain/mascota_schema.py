@@ -3,6 +3,18 @@
 from pydantic import BaseModel
 from typing import Optional
 
+class MascotaCreate(BaseModel):
+    """
+    Modelo para crear mascota (HU-003).
+    Campos obligatorios: nombre, especie.
+    """
+    nombre: str
+    especie: str
+    raza: Optional[str] = None
+    edad: Optional[int] = None
+    peso: Optional[float] = None
+    sexo: Optional[str] = None
+
 
 class MascotaUpdate(BaseModel):
     """

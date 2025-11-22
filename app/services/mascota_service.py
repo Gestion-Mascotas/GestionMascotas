@@ -5,13 +5,135 @@ from typing import Tuple
 from sqlalchemy.orm import Session
 
 from app.repository.mascota_repository import MascotaRepository
-from app.domain.mascota_schema import MascotaUpdate, MascotaOut
+from app.domain.mascota_schema import MascotaUpdate, MascotaOut, MascotaCreate
 from app.domain.usuario_schema import StandardResponse, ErrorDetail
 
 
 class MascotaService:
     def __init__(self, db: Session):
         self.repo = MascotaRepository(db)
+
+    # ---------- HU-003: Crear Mascota ----------
+    def crear_mascota(
+        self,
+        usuario_id: int | None,
+        datos_mascota: MascotaCreate
+    ) -> Tuple[int, StandardResponse]:
+
+        #Usuario no autenticado
+        if usuario_id is None:
+            resp = StandardResponse(
+                mensaje="Debe iniciar sesión para registrar una mascota.",
+                success=False,
+                error_code="401",
+                details=None,
+                data=None,
+            )
+            return 401, resp
+
+        # Validación de campos obligatorios
+        errores: list[ErrorDetail] = []
+
+        if not datos_mascota.nombre:
+            errores.append(ErrorDetail(
+                field="nombre",
+                message="El campo nombre es obligatorio.",
+            ))
+
+        if not datos_mascota.especie:
+            errores.append(ErrorDetail(
+                field="especie",
+                message="El campo especie es obligatorio.",
+            ))
+
+        #Campos obligatorios faltantes
+        if errores:
+            resp = StandardResponse(
+                mensaje="Campos obligatorios faltantes.",
+                success=False,
+                error_code="400",
+                details=errores,
+                data=None,
+            )
+            return 400, resp
+
+        # Validación de valores numéricos
+        if datos_mascota.edad is not None and datos_mascota.edad < 0:
+            errores.append(ErrorDetail(
+                field="edad",
+                message="El campo edad debe ser mayor o igual a 0",
+            ))
+
+        if datos_mascota.peso is not None and datos_mascota.peso < 0:
+            errores.append(ErrorDetail(
+                field="peso",
+                message="El campo peso debe ser mayor o igual a 0",
+            ))
+
+        if errores:
+            resp = StandardResponse(
+                mensaje="Datos inválidos en la solicitud",
+                success=False,
+                error_code="400",
+                details=errores,
+                data=None,
+            )
+            return 400, resp
+
+        #Duplicado de mascota
+        mascota_existente = self.repo.obtener_por_nombre_y_usuario(
+            nombre=datos_mascota.nombre,
+            usuario_id=usuario_id,
+        )
+
+        if mascota_existente:
+            resp = StandardResponse(
+                mensaje="Ya existe una mascota registrada con ese nombre.",
+                success=False,
+                error_code="409",
+                details=None,
+                data=None,
+            )
+            return 409, resp
+
+        #Registro exitoso
+        try:
+            mascota_nueva = self.repo.crear(
+                usuario_id=usuario_id,
+                datos=datos_mascota.model_dump()
+            )
+
+            mascota_out = MascotaOut(
+                id=mascota_nueva.id,
+                nombre=mascota_nueva.nombre,
+                especie=mascota_nueva.especie,
+                raza=mascota_nueva.raza,
+                edad=mascota_nueva.edad,
+                peso=mascota_nueva.peso,
+                sexo=mascota_nueva.sexo,
+                usuario_id=mascota_nueva.usuario_id,
+            )
+
+            resp = StandardResponse(
+                mensaje="Mascota registrada exitosamente",
+                success=True,
+                error_code=None,
+                details=None,
+                data=mascota_out.model_dump()
+                if hasattr(mascota_out, "model_dump")
+                else mascota_out.model_dump(),
+            )
+            return 201, resp
+
+        except Exception:
+            resp = StandardResponse(
+                mensaje="Error al crear la mascota",
+                success=False,
+                error_code="500",
+                details=None,
+                data=None,
+            )
+            return 500, resp
 
     # ---------- HU-005: Actualizar Mascota ----------
     def actualizar_mascota(
