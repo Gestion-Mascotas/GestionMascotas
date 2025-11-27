@@ -17,10 +17,10 @@ class MascotaService:
     def crear_mascota(
         self,
         usuario_id: int | None,
-        datos_mascota: MascotaCreate
+        datos_mascota: MascotaCreate,
     ) -> Tuple[int, StandardResponse]:
 
-        #Usuario no autenticado
+        # Usuario no autenticado
         if usuario_id is None:
             resp = StandardResponse(
                 mensaje="Debe iniciar sesión para registrar una mascota.",
@@ -35,18 +35,22 @@ class MascotaService:
         errores: list[ErrorDetail] = []
 
         if not datos_mascota.nombre:
-            errores.append(ErrorDetail(
-                field="nombre",
-                message="El campo nombre es obligatorio.",
-            ))
+            errores.append(
+                ErrorDetail(
+                    field="nombre",
+                    message="El campo nombre es obligatorio.",
+                )
+            )
 
         if not datos_mascota.especie:
-            errores.append(ErrorDetail(
-                field="especie",
-                message="El campo especie es obligatorio.",
-            ))
+            errores.append(
+                ErrorDetail(
+                    field="especie",
+                    message="El campo especie es obligatorio.",
+                )
+            )
 
-        #Campos obligatorios faltantes
+        # Campos obligatorios faltantes
         if errores:
             resp = StandardResponse(
                 mensaje="Campos obligatorios faltantes.",
@@ -59,16 +63,20 @@ class MascotaService:
 
         # Validación de valores numéricos
         if datos_mascota.edad is not None and datos_mascota.edad < 0:
-            errores.append(ErrorDetail(
-                field="edad",
-                message="El campo edad debe ser mayor o igual a 0",
-            ))
+            errores.append(
+                ErrorDetail(
+                    field="edad",
+                    message="El campo edad debe ser mayor o igual a 0",
+                )
+            )
 
         if datos_mascota.peso is not None and datos_mascota.peso < 0:
-            errores.append(ErrorDetail(
-                field="peso",
-                message="El campo peso debe ser mayor o igual a 0",
-            ))
+            errores.append(
+                ErrorDetail(
+                    field="peso",
+                    message="El campo peso debe ser mayor o igual a 0",
+                )
+            )
 
         if errores:
             resp = StandardResponse(
@@ -80,7 +88,7 @@ class MascotaService:
             )
             return 400, resp
 
-        #Duplicado de mascota
+        # Duplicado de mascota
         mascota_existente = self.repo.obtener_por_nombre_y_usuario(
             nombre=datos_mascota.nombre,
             usuario_id=usuario_id,
@@ -96,11 +104,13 @@ class MascotaService:
             )
             return 409, resp
 
-        #Registro exitoso
+        # Registro exitoso
         try:
             mascota_nueva = self.repo.crear(
                 usuario_id=usuario_id,
                 datos=datos_mascota.model_dump()
+                if hasattr(datos_mascota, "model_dump")
+                else datos_mascota.dict(),
             )
 
             mascota_out = MascotaOut(
@@ -119,9 +129,11 @@ class MascotaService:
                 success=True,
                 error_code=None,
                 details=None,
-                data=mascota_out.model_dump()
-                if hasattr(mascota_out, "model_dump")
-                else mascota_out.model_dump(),
+                data=(
+                    mascota_out.model_dump()
+                    if hasattr(mascota_out, "model_dump")
+                    else mascota_out.dict()
+                ),
             )
             return 201, resp
 
@@ -135,12 +147,11 @@ class MascotaService:
             )
             return 500, resp
 
-
-     # ---------- HU-004: Consultar Mascota ----------
+    # ---------- HU-004: Consultar Mascota ----------
     def consultar_mascota(
         self,
         mascota_id: int,
-        usuario_id: int | None
+        usuario_id: int | None,
     ) -> Tuple[int, StandardResponse]:
 
         # Usuario no autenticado
@@ -200,7 +211,7 @@ class MascotaService:
             data=(
                 mascota_out.model_dump()
                 if hasattr(mascota_out, "model_dump")
-                else mascota_out.model_dump()
+                else mascota_out.dict()
             ),
         )
         return 200, resp
@@ -230,7 +241,7 @@ class MascotaService:
             resp = StandardResponse(
                 mensaje="Acceso no autorizado",
                 success=False,
-                error_code=None,
+                error_code="403",
                 details=None,
                 data=None,
             )
@@ -287,9 +298,11 @@ class MascotaService:
         resp = StandardResponse(
             mensaje="Mascota actualizada correctamente",
             success=True,
-            data=mascota_out.model_dump()
-            if hasattr(mascota_out, "model_dump")
-            else mascota_out.dict(),
+            data=(
+                mascota_out.model_dump()
+                if hasattr(mascota_out, "model_dump")
+                else mascota_out.dict()
+            ),
             error_code=None,
             details=None,
         )
@@ -301,7 +314,6 @@ class MascotaService:
         mascota_id: int,
         usuario_id: int,
     ) -> Tuple[int, StandardResponse]:
-        from app.models.mascota import Mascota  # evitar import circular
 
         mascota = self.repo.obtener_por_id(mascota_id)
 
@@ -321,7 +333,7 @@ class MascotaService:
             resp = StandardResponse(
                 mensaje="Acceso no autorizado",
                 success=False,
-                error_code=None,
+                error_code="403",
                 details=None,
                 data=None,
             )
@@ -343,7 +355,47 @@ class MascotaService:
                 mensaje="Error al eliminar la mascota",
                 success=False,
                 data=None,
-                error_code=None,
+                error_code="500",
                 details=None,
             )
             return 500, resp
+
+
+    # ---------- HU-007: Listar mascotas del usuario ----------
+    def listar_mascotas_usuario(self, usuario_id: int):
+        from app.domain.mascota_schema import MascotaOut
+
+        mascotas = self.repo.obtener_por_usuario(usuario_id)
+
+        if not mascotas:
+            resp = StandardResponse(
+                mensaje="No existen mascotas registradas para este usuario",
+                success=True,
+                error_code=None,
+                details=None,
+                data=[],
+            )
+            return 200, resp
+
+        data = [
+            MascotaOut(
+                id=m.id,
+                nombre=m.nombre,
+                especie=m.especie,
+                raza=m.raza,
+                edad=m.edad,
+                peso=m.peso,
+                sexo=m.sexo,
+                usuario_id=m.usuario_id,
+            ).dict()
+            for m in mascotas
+        ]
+
+        resp = StandardResponse(
+            mensaje="Consulta de mascotas exitosa",
+            success=True,
+            error_code=None,
+            details=None,
+            data=data,
+        )
+        return 200, resp

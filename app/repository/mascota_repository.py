@@ -7,12 +7,11 @@ from app.models.mascota import Mascota
 class MascotaRepository:
     def __init__(self, db: Session):
         self.db = db
+        self.model = Mascota
 
-    
     def crear(self, usuario_id: int, datos: dict) -> Mascota:
         mascota = Mascota(
             usuario_id=usuario_id,
-            
             nombre=datos.get("nombre"),
             especie=datos.get("especie"),
             raza=datos.get("raza"),
@@ -25,19 +24,21 @@ class MascotaRepository:
         self.db.refresh(mascota)
         return mascota
 
-
-    def obtener_por_nombre_y_usuario(self,nombre: str,usuario_id: int) -> Mascota | None:
+    def obtener_por_nombre_y_usuario(self, nombre: str, usuario_id: int) -> Mascota | None:
         return (
-        self.db.query(Mascota)
-        .filter(
-            Mascota.nombre == nombre,
-            Mascota.usuario_id == usuario_id
+            self.db.query(Mascota)
+            .filter(
+                Mascota.nombre == nombre,
+                Mascota.usuario_id == usuario_id
+            )
+            .first()
         )
-        .first()
-    )    
 
     def obtener_por_id(self, mascota_id: int) -> Mascota | None:
         return self.db.query(Mascota).filter(Mascota.id == mascota_id).first()
+
+    def obtener_por_usuario(self, usuario_id: int) -> list[Mascota]:
+        return self.db.query(Mascota).filter(Mascota.usuario_id == usuario_id).all()
 
     def actualizar(self, mascota: Mascota, campos: dict) -> Mascota:
         for key, value in campos.items():
