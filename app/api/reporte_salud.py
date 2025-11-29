@@ -1,13 +1,13 @@
 # app/api/reporte_salud.py
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.domain.usuario_schema import StandardResponse
 from app.services.reporte_salud_service import ReporteSaludService
-from app.security import obtener_usuario_id_desde_token
+from app.security import obtener_usuario_actual  # 👈 usamos la misma dependencia
 
 router = APIRouter(prefix="/api/mascotas", tags=["Reporte de Salud"])
 
@@ -24,11 +24,11 @@ def get_db():
 @router.get("/{mascota_id}/reporte-salud", response_model=StandardResponse)
 def generar_reporte_salud(
     mascota_id: int,
-    authorization: str | None = Header(alias="Authorization", default=None),
+    usuario_id: int | None = Depends(obtener_usuario_actual),  # 👈 viene del Authorize
     db: Session = Depends(get_db),
 ):
-
-    if not authorization or not authorization.startswith("Bearer "):
+    # Si no hay token o es inválido → 401
+    if usuario_id is None:
         resp = StandardResponse(
             mensaje="Debe iniciar sesión para generar el reporte de salud",
             success=False,
@@ -37,9 +37,6 @@ def generar_reporte_salud(
             data=None,
         )
         return JSONResponse(status_code=401, content=resp.model_dump())
-
-    token = authorization.split(" ", 1)[1]
-    usuario_id = obtener_usuario_id_desde_token(token)
 
     service = ReporteSaludService(db)
     status_code, resp = service.generar_reporte(mascota_id, usuario_id)

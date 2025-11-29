@@ -1,6 +1,6 @@
 # app/schemas/usuario_schema.py
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union   # 👈 añadimos Union
 from app.models.usuario import RolEnum
 
 
@@ -51,7 +51,8 @@ class ErrorDetail(BaseModel):
 class StandardResponse(BaseModel):
     mensaje: str
     success: bool
-    data: Optional[Dict[str, Any]] = None
+    # 👇 ahora acepta dict, lista ([], [ {...}, ... ]) o None
+    data: Optional[Union[Dict[str, Any], List[Any]]] = None
     error_code: Optional[str] = None
     details: Optional[List[ErrorDetail]] = None
 

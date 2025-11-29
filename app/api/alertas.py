@@ -1,13 +1,13 @@
 # app/api/alertas.py
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.domain.usuario_schema import StandardResponse
 from app.services.alertas_service import AlertaVacunasService
-from app.security import obtener_usuario_id_desde_token
+from app.security import obtener_usuario_actual  # 👈 dependencia centralizada
 
 router = APIRouter(prefix="/api/alertas", tags=["Alertas"])
 
@@ -23,33 +23,22 @@ def get_db():
 # HU-013: GET /api/alertas/vacunas-proximas
 @router.get("/vacunas-proximas", response_model=StandardResponse)
 def vacunas_proximas(
-    authorization: str | None = Header(alias="Authorization", default=None),
+    usuario_id: int | None = Depends(obtener_usuario_actual),  # 👈 valida token automáticamente
     db: Session = Depends(get_db),
 ):
 
-    if not authorization or not authorization.startswith("Bearer "):
+    # Si Swagger no pasó token → 401
+    if usuario_id is None:
         resp = StandardResponse(
-            mensaje="No tiene permisos para acceder a esta información",
+            mensaje="Debe iniciar sesión para consultar alertas de vacunas",
             success=False,
-            error_code="AUTH.FORBIDDEN",
+            error_code="401",
             details=None,
             data=None,
         )
-        return JSONResponse(status_code=403, content=resp.model_dump())
+        return JSONResponse(status_code=401, content=resp.model_dump())
 
-    token = authorization.split(" ", 1)[1]
-    usuario_id = obtener_usuario_id_desde_token(token)
-
-    if not usuario_id:
-        resp = StandardResponse(
-            mensaje="No tiene permisos para acceder a esta información",
-            success=False,
-            error_code="AUTH.FORBIDDEN",
-            details=None,
-            data=None,
-        )
-        return JSONResponse(status_code=403, content=resp.model_dump())
-
+    # Llamamos al servicio
     service = AlertaVacunasService(db)
     status_code, resp = service.obtener_alertas_vacunas(usuario_id)
     return JSONResponse(status_code=status_code, content=resp.model_dump())

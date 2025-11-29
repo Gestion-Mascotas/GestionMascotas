@@ -18,6 +18,7 @@ class ReporteSaludService:
 
     def generar_reporte(self, mascota_id: int, usuario_id: int | None):
 
+        # 1) Validar autenticación
         if usuario_id is None:
             resp = StandardResponse(
                 mensaje="Debe iniciar sesión para generar el reporte de salud",
@@ -28,6 +29,7 @@ class ReporteSaludService:
             )
             return 401, resp
 
+        # 2) Validar que el usuario sea veterinario
         usuario = self.usuario_repo.obtener_por_id(usuario_id)
         if not usuario or usuario.rol != RolEnum.veterinario:
             resp = StandardResponse(
@@ -39,6 +41,7 @@ class ReporteSaludService:
             )
             return 403, resp
 
+        # 3) Validar que la mascota exista
         mascota = self.mascota_repo.obtener_por_id(mascota_id)
         if not mascota:
             resp = StandardResponse(
@@ -50,6 +53,7 @@ class ReporteSaludService:
             )
             return 404, resp
 
+        # 4) Obtener registros médicos
         registros = self.historial_repo.obtener_por_mascota(mascota_id)
 
         if not registros:
@@ -62,12 +66,13 @@ class ReporteSaludService:
             )
             return 204, resp
 
-        # Construir estructura del reporte según la HU
-        vacunas = []
-        diagnosticos = []
-        tratamientos = []
+        # 5) Construir estructura del reporte según la HU
+        vacunas: list[dict] = []
+        diagnosticos: list[dict] = []
+        tratamientos: list[dict] = []
 
         for r in registros:
+            # Vacunas
             if r.tipo and r.tipo.lower() == "vacuna":
                 vacunas.append(
                     {
@@ -75,6 +80,8 @@ class ReporteSaludService:
                         "fecha": r.fecha.isoformat() if r.fecha else None,
                     }
                 )
+
+            # Diagnósticos
             if r.diagnostico:
                 diagnosticos.append(
                     {
@@ -82,11 +89,13 @@ class ReporteSaludService:
                         "descripcion": r.diagnostico,
                     }
                 )
-            if r.tratamiento:
+
+            # Tratamientos (usamos descripcion como medicamento y tratamiento como dosis)
+            if r.tipo and r.tipo.lower() == "tratamiento":
                 tratamientos.append(
                     {
-                        "medicamento": r.tratamiento,
-                        "dosis": "",  # opcional, no está modelado explícito
+                        "medicamento": r.descripcion or "",
+                        "dosis": r.tratamiento or "",
                     }
                 )
 

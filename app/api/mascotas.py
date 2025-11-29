@@ -2,18 +2,15 @@
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.domain.mascota_schema import MascotaCreate, MascotaUpdate
 from app.domain.usuario_schema import StandardResponse
 from app.services.mascota_service import MascotaService
-from app.security import obtener_usuario_id_desde_token
+from app.security import obtener_usuario_actual  # 👈 usamos la dependencia global
 
 router = APIRouter(prefix="/api/mascotas", tags=["Mascotas"])
-
-security = HTTPBearer()   # <--- ESTA LÍNEA ES LA CLAVE
 
 
 # -----------------------
@@ -33,20 +30,14 @@ def get_db():
 @router.post("/", response_model=StandardResponse)
 def crear_mascota(
     datos: MascotaCreate,
-    credenciales: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
+    usuario_id: int | None = Depends(obtener_usuario_actual),
 ):
 
-    token = credenciales.credentials
-    print("=== DEBUG CREAR MASCOTA ===")
-    print("Token recibido:", token)
-
-    usuario_id = obtener_usuario_id_desde_token(token)
-    print("Usuario ID:", usuario_id)
-
-    if not usuario_id:
+    # Sin token o token inválido
+    if usuario_id is None:
         resp = StandardResponse(
-            mensaje="Token inválido o expirado.",
+            mensaje="Debe iniciar sesión para registrar una mascota.",
             success=False,
             data=None,
             error_code="401",
@@ -56,9 +47,6 @@ def crear_mascota(
 
     service = MascotaService(db)
     status_code, resp = service.crear_mascota(usuario_id, datos)
-
-    print("Status:", status_code)
-    print("=== FIN DEBUG ===")
     return JSONResponse(status_code=status_code, content=resp.model_dump())
 
 
@@ -68,16 +56,22 @@ def crear_mascota(
 @router.get("/{mascota_id}", response_model=StandardResponse)
 def consultar_mascota(
     mascota_id: int,
-    credenciales: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
+    usuario_id: int | None = Depends(obtener_usuario_actual),
 ):
 
-    token = credenciales.credentials
-    usuario_id = obtener_usuario_id_desde_token(token)
+    if usuario_id is None:
+        resp = StandardResponse(
+            mensaje="Debe iniciar sesión para consultar la mascota.",
+            success=False,
+            data=None,
+            error_code="401",
+            details=None,
+        )
+        return JSONResponse(status_code=401, content=resp.model_dump())
 
     service = MascotaService(db)
     status_code, resp = service.consultar_mascota(mascota_id, usuario_id)
-
     return JSONResponse(status_code=status_code, content=resp.model_dump())
 
 
@@ -88,16 +82,22 @@ def consultar_mascota(
 def actualizar_mascota(
     mascota_id: int,
     datos: MascotaUpdate,
-    credenciales: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
+    usuario_id: int | None = Depends(obtener_usuario_actual),
 ):
 
-    token = credenciales.credentials
-    usuario_id = obtener_usuario_id_desde_token(token)
+    if usuario_id is None:
+        resp = StandardResponse(
+            mensaje="Debe iniciar sesión para actualizar la mascota.",
+            success=False,
+            data=None,
+            error_code="401",
+            details=None,
+        )
+        return JSONResponse(status_code=401, content=resp.model_dump())
 
     service = MascotaService(db)
     status_code, resp = service.actualizar_mascota(mascota_id, usuario_id, datos)
-
     return JSONResponse(status_code=status_code, content=resp.model_dump())
 
 
@@ -107,14 +107,20 @@ def actualizar_mascota(
 @router.delete("/{mascota_id}", response_model=StandardResponse)
 def eliminar_mascota(
     mascota_id: int,
-    credenciales: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
+    usuario_id: int | None = Depends(obtener_usuario_actual),
 ):
 
-    token = credenciales.credentials
-    usuario_id = obtener_usuario_id_desde_token(token)
+    if usuario_id is None:
+        resp = StandardResponse(
+            mensaje="Debe iniciar sesión para eliminar la mascota.",
+            success=False,
+            data=None,
+            error_code="401",
+            details=None,
+        )
+        return JSONResponse(status_code=401, content=resp.model_dump())
 
     service = MascotaService(db)
     status_code, resp = service.eliminar_mascota(mascota_id, usuario_id)
-
     return JSONResponse(status_code=status_code, content=resp.model_dump())
